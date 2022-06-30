@@ -1,0 +1,2 @@
+Binary Trees and BSTs
+Scott Mitchell looks at a common data structure that is not included in the .NET Framework Base Class Library, binary trees. A binary search tree, or BST, allows for a much more optimized search time than with unsorted arrays.
