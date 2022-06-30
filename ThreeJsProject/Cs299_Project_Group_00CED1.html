@@ -1,0 +1,533 @@
+<!-- Author: Thanakit Yuenyongphisit
+     
+    Project: Solitariness
+
+    Main: moving particle, event listener, interactive web app
+    Tool: Js, three js, blender
+
+    Note: I do coding part not included models
+-->
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>CS299 Example</title>
+  <style type="text/css">
+    html, body {
+      margin: 0;
+      height: 100%;
+    }
+    #c {
+        
+      width: 100%;
+      height: 100%;
+      display: block;
+
+    }
+    #info{
+        position: absolute;
+      left: 0;
+      top: 0;
+      
+      display: flex;
+      
+      
+      font-size: small;
+      font-family: sans-serif;
+      color: white;
+    }
+    .container{
+        
+    }
+    
+
+  </style>
+</head>
+<body>
+     <canvas id="c"></canvas>
+     <div id="info">
+         <div>Click screen to play music.
+             <br>Use arrow to interact orbit star
+             <br>Up : increase distance (Down on the contrary)
+             <br>Right : increase speed (Left on the contrary)
+             <br>Spacebar: to toggle Room light
+            </div>
+     </div>
+  
+  
+</body>
+
+
+<script type="module">
+  import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/build/three.module.js';
+  import {OrbitControls} from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/controls/OrbitControls.js';
+  import {GLTFLoader} from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/loaders/GLTFLoader.js';
+  //import * as SkeletonUtils from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/utils/SkeletonUtils.js';
+  import {GUI} from 'https://threejsfundamentals.org/threejs/../3rdparty/dat.gui.module.js';
+  
+function main(){
+
+//GUI
+    const gui = new GUI()
+
+
+//GLTF
+    const loader = new GLTFLoader();
+    loader.load(
+        'gltf/SolitarinessRoom.gltf',
+        
+        ( gltf ) => {
+            
+            // called when the resource is loaded
+                //Shadow
+                gltf.scene.traverse( function( node ) {
+
+                    if ( node.isMesh ) { node.castShadow = true; }
+                    if ( node.isMesh || node.isLight ) node.receiveShadow = true;
+            
+                } );
+                gltf.scene.traverse( function ( child ) {
+
+                    if ( child.isMesh ) {
+
+                        //child.material.envMap = envMap; //reflection of the world
+
+                    }
+
+                } );
+            scene.add( gltf.scene );
+        },
+        ( xhr ) => {
+            // called while loading is progressing
+            console.log( `${( xhr.loaded / xhr.total * 100 )}% loaded` );
+        },
+        ( error ) => {
+            // called when loading has errors
+            console.error( 'An error happened', error );
+        },
+    );
+    
+    
+
+    // Canvas
+    const canvas = document.querySelector('#c')
+
+    // Scene
+    const scene = new THREE.Scene()
+
+    //texture loader
+    const textureloader = new THREE.TextureLoader()
+
+/**
+ * Sizes
+ */
+ const sizes = {
+    width: window.innerWidth,
+    height: window.innerHeight
+}
+//event when user adjust scene
+window.addEventListener('resize', () =>
+{
+    // Update sizes
+    sizes.width = window.innerWidth
+    sizes.height = window.innerHeight
+
+    // Update camera
+    camera.aspect = sizes.width / sizes.height
+    camera.updateProjectionMatrix()
+
+    // Update renderer
+    renderer.setSize(sizes.width, sizes.height)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+})
+
+/**
+ * Camera
+ */
+    // Base camera
+    const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 20000)
+    camera.position.x = 5
+    camera.position.y = 5
+    camera.position.z = 5
+    scene.add(camera)
+    
+
+/**
+ * Renderer
+ */
+const renderer = new THREE.WebGLRenderer({
+    canvas: canvas
+})
+renderer.setSize(sizes.width, sizes.height)
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+//Shadow
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+/**
+ * Scene setting
+ */
+//Orbit control camera
+    const controls = new OrbitControls(camera , renderer.domElement)
+    //this true will add weight when rotate camera
+    controls.enableDamping = true
+
+
+//Environtment
+    const lightlamp = new THREE.PointLight(0xE7EF6B, 1 , 100)
+    lightlamp.intensity = 0
+    scene.add( lightlamp );
+    lightlamp.position.set(.1,1.4,-0.8)
+    
+    const star = []
+    for(var i = 0 ; i < 25 ; i++){
+        star[i] = createdPlanet(Math.random() * 0xffffff )
+    }
+
+// SkyBox
+const cubeTextureLoader = new THREE.CubeTextureLoader();
+const skyboxTexture = cubeTextureLoader.load([
+    'skybox/corona_ft.png',
+    'skybox/corona_bk.png',
+    'skybox/corona_up.png',
+    'skybox/corona_dn.png',
+    'skybox/corona_rt.png',
+    'skybox/corona_lf.png'
+
+])
+scene.background = skyboxTexture;
+    
+
+// Lights
+
+    let lightIntensity = 10;
+    //Day light
+        const light = new THREE.DirectionalLight( 0xfff9d8, 1, 100 );
+        light.position.set( 5, 5, 5 ); 
+        light.castShadow = true; 
+        
+        //Set up shadow properties for the light
+        light.shadow.mapSize.width = 2048; // default 512
+        light.shadow.mapSize.height = 2048; // default 512
+        light.shadow.camera.near = 0.5; // default
+        light.shadow.camera.far = 1000;
+        light.intensity = lightIntensity;
+        scene.add( light );
+
+        //Sphere
+            const geometryoriginSphere = new THREE.SphereBufferGeometry(100 ,50 ,50)
+
+            const materialoriginSphere = new THREE.MeshBasicMaterial({
+                color: 0xfff9d8,
+                map: textureloader.load('texture/light.jpg'),
+
+
+            })
+            //Mesh
+            const originSphere = new THREE.Mesh(geometryoriginSphere,materialoriginSphere)
+            light.attach(originSphere)
+
+        //Glowing
+        const glowLight = new THREE.Mesh(new THREE.SphereBufferGeometry(120,30,30) , glassmaterial(0xEE6611))
+        light.attach(glowLight)
+
+        //Back group light
+        const addedLight = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1 );
+        scene.add( addedLight );
+
+
+    //Night Light
+        const nightlight = new THREE.DirectionalLight( 0x00FFF5, 1, 100 );
+        nightlight.position.set(-5,-5,-5)
+        nightlight.castShadow = true
+        //Light Properties
+            nightlight.shadow.mapSize.width = 2048; // default
+            nightlight.shadow.mapSize.height = 2048; // default
+            nightlight.shadow.camera.near = 0.5; // default
+            nightlight.shadow.camera.far = 1000; // default
+            nightlight.intensity = lightIntensity;
+            scene.add( nightlight );
+        //Night sphere
+            const geometryNightSphere = new THREE.SphereBufferGeometry(100 ,50 ,50)
+
+            const materialNightSphere = new THREE.MeshBasicMaterial({
+            color: 0x00FFF5,
+            map: textureloader.load('texture/blue.jpg'),
+
+            })
+            //Mesh
+            const nightSphere = new THREE.Mesh(geometryNightSphere,materialNightSphere)
+            nightlight.attach(nightSphere)
+        
+        //Glowing
+        const glowNight = new THREE.Mesh(new THREE.SphereBufferGeometry(120,30,30) , glassmaterial(0x00FFF5))
+        nightlight.attach(glowNight)
+        
+
+//random Distance each star
+var sphereDistance =[];
+
+
+for(var i = 0 ; i < star.length ; i++){
+    //Random distance
+    sphereDistance[i] = (Math.random()*205)%50 +10;
+}
+//sphere
+var sphereSpeed = 0.00005;
+var sphereTravel =[]
+for(var i = 0 ; i < star.length ; i++){
+    sphereTravel[i] = 0;
+}
+var lightTravel = 0;
+var lightSpeed = 0.0005;
+
+//Music
+    const listener = new THREE.AudioListener();
+    camera.add( listener );
+
+    // create a global audio source
+    const sound = new THREE.Audio( listener );
+
+    var firstTime = true
+    
+    const audioPlay = (event) =>{
+        if(firstTime){
+        // load a sound and set it as the Audio object's buffer
+            const audioLoader = new THREE.AudioLoader();
+            audioLoader.load( 'music/Inochi.mp3', function( buffer ) {
+            sound.setBuffer( buffer );
+            sound.setLoop( true );
+            sound.setVolume( 0.5 );
+            sound.play();
+            firstTime = false
+    });
+        }
+    }
+    window.addEventListener('click',audioPlay )
+//Keyboard input
+let up = false
+let down = false
+let left = false
+let right = false
+let space = false
+
+const onKeyDown = function ( event ) {
+     switch ( event.code ) {
+        case 'Space':
+            space = true
+        break;
+        case 'ArrowUp':
+        up = true;
+        break;
+
+        case 'ArrowLeft':
+        left = true;
+            break;
+
+        case 'ArrowDown':
+        down = true;
+            break;
+
+        case 'ArrowRight':
+        right = true;
+            break;
+    }
+}
+const onKeyUp = function ( event ) {
+     switch ( event.code ) {
+        case 'ArrowUp':
+        up = false;
+        break;
+
+        case 'ArrowLeft':
+        left = false;
+            break;
+
+        case 'ArrowDown':
+        down = false;
+            break;
+
+        case 'ArrowRight':
+        right = false;
+            break;
+    }
+}
+
+window.addEventListener('keydown', onKeyDown);
+window.addEventListener('keyup', onKeyUp);
+
+//gui add
+light.intensity
+gui.add(light , "intensity").min(0).max(100).step(0.5)
+gui.add(nightlight , "intensity").min(0).max(100).step(0.5)
+
+/*
+/
+//Animate
+/
+*/
+//clock time
+const clock = new THREE.Clock()
+let distanceFac = 1
+
+function animate(){
+    requestAnimationFrame( animate)
+    //switch light
+    
+    lamp()
+    adjuststarOrbit()
+    //Each Star moving
+    for(var i = 0 ; i < star.length ; i++){
+        
+        sphereTravel[i] += sphereSpeed + i/5000;
+        sphereTravel[i] = sphereTravel[i]%6.28318531
+
+        var eachSphereTravel = sphereTravel[i]
+        star[i].position.x = distanceFac * sphereDistance[i]*Math.sin(eachSphereTravel);
+        star[i].position.z = distanceFac * sphereDistance[i]*Math.cos(eachSphereTravel);
+        star[i].position.y = distanceFac * sphereDistance[i]%10*Math.cos(eachSphereTravel);
+    }
+    // Update objects
+
+    //Light Origin
+    lightTravel  += lightSpeed;
+
+    light.position.x = 500*Math.sin(lightTravel%6.28318531);
+    light.position.y = 500*Math.cos(lightTravel%6.28318531);
+
+    const elapsedTime = clock.getElapsedTime()
+
+    light.rotation.y = .5 * elapsedTime
+    light.rotation.x = .02 * elapsedTime
+    nightlight.rotation.y = .5 * elapsedTime
+    nightlight.rotation.x = .02 * elapsedTime
+
+    nightlight.position.x = -500*Math.sin(lightTravel%6.28318531);
+    nightlight.position.y      = -500*Math.cos(lightTravel%6.28318531);
+
+
+    addedLight.position.x = Math.cos(lightTravel%6.28318531);
+    addedLight.position.y = Math.cos(lightTravel%6.28318531);
+
+    controls.update();
+    renderer.render( scene , camera)
+
+}
+animate()
+//Interaction function
+
+function adjuststarOrbit(){
+    //increase speed
+    if(right)
+        sphereSpeed += 0.0001
+    else if(sphereSpeed > 0.00005)
+        sphereSpeed -= 0.00005
+    //Decrease speed
+    if(left)
+        sphereSpeed -= 0.0001
+    else if(sphereSpeed < 0.00005)
+        sphereSpeed += 0.00002
+    //Increase distance
+    if(up)
+        distanceFac += 0.0001
+    else if(distanceFac > 1)
+        distanceFac -= 0.00005
+    //Decrease distance
+    if(down)
+        distanceFac -= 0.0001
+    else if(distanceFac < 1)
+        distanceFac += 0.00005
+}
+
+//Extra function
+
+function createdPlanet(color){
+    const x = Math.floor(Math.random() * 50)
+    const y = Math.floor(Math.random() * 5)
+    
+
+    const z = Math.floor(Math.random() * 10) - Math.floor(Math.random() * 10)
+    //Glow
+        const geometryglow = new THREE.SphereBufferGeometry(.5 ,50 ,50)
+
+        const materialglow= new THREE.MeshStandardMaterial({
+                color: 0xfff9d8,
+                map: textureloader.load('PBR/CrystalOre_albedo.tif'),
+                normalMap: textureloader.load('PBR/CrystalOre_normal.tif'),
+                roughnessMap: textureloader.load('PBR/CrystalOre_roughness.tif'),
+                roughness: 1,
+                metalness: 1,
+                displacementMap: textureloader.load('PBR/CrystalOre_roughness.tif'),
+                displacementScale: 0.00001,
+                aoMap:  textureloader.load('PBR/CrystalOre_ao.tif'),
+                
+            })
+        
+        const glow = new THREE.Mesh(geometryglow,materialglow)
+        glow.position.set(x,z,y)
+        scene.add(glow)
+
+    //light
+        const light = new THREE.PointLight( color, 10, 10);
+        light.power = 1270;
+        light.position.set( x, z, y );
+        scene.add( light );
+        
+
+    //Attach
+    glow.attach(light)
+        return glow
+}
+
+function glassmaterial( color){
+    return new THREE.MeshPhysicalMaterial({
+        metalness: .9,
+        roughness: .05,
+        envMapIntensity: 0,
+        clearcoat: 1,
+        transparent: true,
+        opacity: .3,
+        reflectivity: 100,
+        color: color,
+        
+    })
+}
+
+//switch
+var stateLight = -1
+function lamp(){
+        if(space){
+            //already on
+            if(stateLight == 1){
+                console.log("is off")
+                lightlamp.intensity = 0
+                stateLight = 0
+            }
+                
+            else{
+                console.log("is on")
+                lightlamp.intensity = 5
+                stateLight = 1
+            }
+                
+            space = false
+        }
+        
+    }
+
+
+
+
+
+}
+
+main();
+
+
+</script>
+</html>
+
